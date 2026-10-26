@@ -12,7 +12,7 @@ defineEmits(['back'])
 // To test a just-compiled file without redeploying, use the picker in
 // the "Change target" panel below.
 const IMAGE_TARGET_SRC =
-  '/ImageMarketTest.mind' // 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind'
+  '/ImageMartkTest.mind' // 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind'
 const CARD_IMAGE_URL =
   'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png'
 
@@ -29,14 +29,65 @@ let startToken = 0
 let previousBodyOverflow = ''
 
 async function stopTracking() {
+  // MindARThree.stop() alone is NOT enough, and this is the bug behind
+  // the overlay that stayed after Back:
+  // - MindAR's UI (loading / scanning / compatibility) is appended to
+  //   document.body, NOT to the container — see mind-ar/src/ui/ui.js
+  //   _loadHTML(). Clearing container.innerHTML never removes it, and
+  //   stop() never hides or removes it either. Its scanning overlay is
+  //   position:absolute, full-page, z-index:2, so once the fullscreen
+  //   container (z-index:1000) is unmounted, that overlay sits on top
+  //   of the home page and blocks every tab tap.
+  // - stop() also leaves the WebGL/CSS renderer canvases in the container,
+  //   and throws if video was never created (e.g. Back during loading),
+  //   so guard that too.
+  // Do all of this synchronously before any await, so Back cleans up
+  // immediately even though Vue removes the component DOM at once.
   if (mindarThree) {
-    try {
-      mindarThree.renderer?.setAnimationLoop(null)
-      await mindarThree.stop()
-    } catch {
-      // Stop is best-effort; the camera is released by stop().
-    }
+    const instance = mindarThree
     mindarThree = null
+    try {
+      instance.renderer?.setAnimationLoop(null)
+    } catch {
+      // ignore
+    }
+    try {
+      if (instance.video) {
+        instance.stop()
+      } else if (instance.controller) {
+        instance.controller.stopProcessVideo()
+      }
+    } catch {
+      // Stop is best-effort; the camera is released by stop() when it can run.
+    }
+    try {
+      instance.renderer?.domElement?.remove()
+      instance.cssRenderer?.domElement?.remove()
+      instance.video?.remove()
+      if (instance.video?.srcObject) {
+        instance.video.srcObject.getTracks().forEach((track) => track.stop())
+      }
+      instance.renderer?.dispose()
+      instance.video = null
+    } catch {
+      // ignore
+    }
+    try {
+      const ui = instance.ui
+      if (ui) {
+        ui.hideLoading?.()
+        ui.hideScanning?.()
+        ui.hideCompatibility?.()
+        ui.loadingModal?.remove()
+        ui.scanningMask?.remove()
+        ui.compatibilityModal?.remove()
+      }
+    } catch {
+      // ignore
+    }
+    // Fallback: no MindAR UI node may survive Back, even if the
+    // instance above was created by an earlier session.
+    document.querySelectorAll('.mindar-ui-overlay').forEach((el) => el.remove())
   }
   if (containerRef.value) containerRef.value.innerHTML = ''
 }
@@ -192,7 +243,11 @@ onUnmounted(async () => {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: #000;
+  /* No black background here: see below. A black background on the
+     stacking-context root can sit over MindAR's video, which MindAR
+     itself gives z-index:-2 — that was a contributor to the black
+     fullscreen. The video is the background now. */
+  background: transparent;
   color: #fff;
 }
 
@@ -203,18 +258,36 @@ onUnmounted(async () => {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  background: #000;
+  background: transparent;
 }
 
-.ar-container :deep(canvas),
+/* MindAR sets the video to z-index:-2 and sizes it in resize() with
+   inline top/left/width/height offsets that crop it to the container
+   ratio. Forcing it to fill the fullscreen container, at a positive
+   z-index, on top of any background, is what makes the camera feed
+   actually visible instead of a black screen. The !important rules
+   win over MindAR's inline resize styles. The transparent WebGL
+   canvas then draws the basketball on top of the video. */
 .ar-container :deep(video) {
+  top: 0 !important;
+  left: 0 !important;
   width: 100% !important;
   height: 100% !important;
   object-fit: cover;
+  z-index: 0 !important;
+}
+
+.ar-container :deep(canvas) {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1 !important;
 }
 
 .overlay-top {
   position: absolute;
+  z-index: 10;
   top: 0;
   left: 0;
   right: 0;
@@ -259,6 +332,7 @@ onUnmounted(async () => {
 
 .error-hint {
   position: absolute;
+  z-index: 10;
   top: 76px;
   left: 12px;
   right: 12px;
@@ -270,6 +344,7 @@ onUnmounted(async () => {
 
 .overlay-bottom {
   position: absolute;
+  z-index: 10;
   left: 0;
   right: 0;
   bottom: 0;
