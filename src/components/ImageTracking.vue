@@ -11,7 +11,7 @@ defineEmits(['back'])
 // put the .mind file in public/, and change IMAGE_TARGET_SRC to '/your-target.mind'.
 // To test a just-compiled file without redeploying, use the picker below.
 const IMAGE_TARGET_SRC =
-  'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind'
+  '/ImageMarketTest.mind' // compiled from https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind
 const CARD_IMAGE_URL =
   'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png'
 
