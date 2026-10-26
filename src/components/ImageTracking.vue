@@ -12,7 +12,7 @@ defineEmits(['back'])
 // To test a just-compiled file without redeploying, use the picker in
 // the "Change target" panel below.
 const IMAGE_TARGET_SRC =
-  '/ImageMartkTest.mind' // 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind'
+  '/ImageMarketTest.mind' // 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind'
 const CARD_IMAGE_URL =
   'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png'
 
