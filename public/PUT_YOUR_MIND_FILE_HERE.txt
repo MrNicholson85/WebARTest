@@ -1,0 +1,3 @@
+Put your compiled .mind file in this folder (web-ar-vue/public/).
+Vite serves it at the site root, so a file here called my-poster.mind
+is used as IMAGE_TARGET_SRC = "/my-poster.mind" in ImageTracking.vue.
